@@ -75,6 +75,32 @@
             border-radius: 12px;
             border: 1px solid #2a2a2e;
         }
+        .rx-debug {
+            text-align: left;
+            margin: 12px 0 0;
+        }
+        .rx-debug-label {
+            font-size: 10px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+        #rxLog {
+            font-family: ui-monospace, monospace;
+            font-size: 10px;
+            line-height: 1.35;
+            color: #ccc;
+            background: #0a0a0c;
+            border: 1px solid #2a2a2e;
+            border-radius: 8px;
+            padding: 8px;
+            margin: 0;
+            max-height: 120px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
     </style>
 </head>
 <body oncontextmenu="return false;">
@@ -90,6 +116,11 @@
     <button id="btnConnect" class="btn-connect">CONNECT ELM327 (USB / BT)</button>
     
     <div id="bigStatus">DISCONNECTED</div>
+
+    <div class="rx-debug">
+        <div class="rx-debug-label">Last lines from ELM (also in DevTools → Console as [RX] / [TX])</div>
+        <pre id="rxLog"></pre>
+    </div>
 
     <div class="btn-group">
         <button id="btnOff" class="round-btn btn-off">
@@ -116,13 +147,29 @@
 
     let port, writer, reader;
     const bigStatus = document.getElementById('bigStatus');
+    const rxLogEl = document.getElementById('rxLog');
+    const MAX_RX_LINES = 24;
+    let rxHistory = [];
     let currentResponse = "";
     let isWaitingForResponse = false;
+
+    function pushRxLog(msg) {
+        console.log("[RX]", msg);
+        rxHistory.push(msg);
+        if (rxHistory.length > MAX_RX_LINES) rxHistory.shift();
+        if (rxLogEl) rxLogEl.textContent = rxHistory.join("\n");
+    }
+
+    function clearRxLog() {
+        rxHistory = [];
+        if (rxLogEl) rxLogEl.textContent = "";
+    }
 
     function silentLog(msg, type = 'rx') {
         if (type === 'rx') {
             currentResponse = msg;
             isWaitingForResponse = false;
+            pushRxLog(msg);
         }
     }
 
@@ -167,6 +214,7 @@
             port = await requestSerialPort();
             await port.open({ baudRate: 38400 });
             writer = port.writable.getWriter();
+            clearRxLog();
             bigStatus.innerText = "CONNECTED";
             bigStatus.style.color = "#00d4ff";
             readLoop();
@@ -207,9 +255,11 @@
 
     async function sendCmd(cmd) {
         if (!writer) return;
+        const line = cmd.toUpperCase();
+        console.log("[TX]", line);
         isWaitingForResponse = true;
         currentResponse = "";
-        await writer.write(new TextEncoder().encode(cmd.toUpperCase() + "\r"));
+        await writer.write(new TextEncoder().encode(line + "\r"));
         
         let timeout = 0;
         while (isWaitingForResponse && timeout < 30) {
