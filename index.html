@@ -130,10 +130,10 @@
     <button id="btnConnect" class="btn-connect">CONNECT ELM327 (USB / BT)</button>
     
     <div id="bigStatus">DISCONNECTED</div>
-    <div id="ecuReadHint">Connect first. After a routine, last ECU read is explained here.</div>
+    <div id="ecuReadHint">Connect first. After you tap OFF or ON, the last reply from the car is explained here.</div>
 
     <div class="rx-debug">
-        <div class="rx-debug-label">Last lines from ELM (also in DevTools → Console as [RX] / [TX])</div>
+        <div class="rx-debug-label">Raw lines from adapter (F12 Console also logs [TX] / [RX])</div>
         <pre id="rxLog"></pre>
     </div>
 
@@ -193,26 +193,26 @@
 
     function resetEcuReadHint() {
         if (!ecuReadHint) return;
-        ecuReadHint.textContent = "Connect first. After a routine, last ECU read is explained here.";
+        ecuReadHint.textContent = "Connect first. After you tap OFF or ON, the last reply from the car is explained here.";
         ecuReadHint.style.color = "#888";
     }
 
     function describeEcuRead(raw) {
         const h = hexNorm(raw);
         if (h.includes("7103DFC702"))
-            return { text: "ECU read → Start-Stop: OFF (…02).", color: "#ff6b5e" };
+            return { text: "Read says Start-Stop: OFF (…02).", color: "#ff6b5e" };
         if (h.includes("7103DFC704"))
-            return { text: "ECU read → Start-Stop: ON (…04).", color: "#5efd6d" };
+            return { text: "Read says Start-Stop: ON (…04).", color: "#5efd6d" };
         const idx = h.indexOf("7F31");
         if (idx >= 0 && h.length >= idx + 6) {
             const nrc = h.slice(idx + 4, idx + 6);
             const tag = NRC_NAMES[nrc] || "NRC";
-            return { text: "ECU refused RoutineControl: 7F 31 " + nrc + " (" + tag + ").", color: "#ff9f0a" };
+            return { text: "Car refused the command: 7F 31 " + nrc + " (" + tag + ").", color: "#ff9f0a" };
         }
         if (h.includes("7101DFC7"))
-            return { text: "Routine started (71 01 DF C7 …). Waiting for read…", color: "#00d4ff" };
+            return { text: "Car accepted the write (71 01 …). Reading state…", color: "#00d4ff" };
         if (h.includes("7F") || h.includes("71"))
-            return { text: "ECU reply is not the expected read pattern (see RX log).", color: "#ff9f0a" };
+            return { text: "Unexpected reply (see raw log below).", color: "#ff9f0a" };
         return { text: "No state in this line (AT echo / flow control).", color: "#666" };
     }
 
@@ -360,7 +360,7 @@
         bigStatus.innerText = "WAITING...";
         bigStatus.style.color = "#ffcc00";
         if (ecuReadHint) {
-            ecuReadHint.textContent = "Running OFF routine…";
+            ecuReadHint.textContent = "OFF in progress…";
             ecuReadHint.style.color = "#ffcc00";
         }
 
@@ -388,7 +388,7 @@
         bigStatus.innerText = "WAITING...";
         bigStatus.style.color = "#ffcc00";
         if (ecuReadHint) {
-            ecuReadHint.textContent = "Running ON routine…";
+            ecuReadHint.textContent = "ON in progress…";
             ecuReadHint.style.color = "#ffcc00";
         }
 
